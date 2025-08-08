@@ -18,21 +18,21 @@ const userRegister = async (req, res) => {
     if (!companyName || !userId || !password) {
       return res
         .status(500)
-        .sene({ success: false, msg: "Fill the All Required Fields" });
+        .send({ success: false, msg: "Fill the All Required Fields" });
     }
     if (!validator.isEmail(userId)) {
       return res
         .status(500)
-        .sene({ success: false, msg: "Enter Valid UserID" });
+        .send({ success: false, msg: "Enter Valid UserID" });
     }
     if (!validator.isStrongPassword(password)) {
       return res
         .status(500)
-        .sene({ success: false, msg: "Please Enter Strong Password" });
+        .send({ success: false, msg: "Please Enter Strong Password" });
     }
 
-    const existUser = await User.find({ userId });
-
+    const existUser = await User.findOne({ userId });
+ 
     if (existUser) {
       return res
         .status(500)
