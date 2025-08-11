@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+const bcrypt = require("bcryptjs");
 const userSchema = mongoose.Schema({
   comapanyName: {
     type: String,
@@ -17,7 +17,6 @@ const userSchema = mongoose.Schema({
     required: [true, "Phone Number is mandatory"],
     validate: {
       validator: function (val) {
-        console.log(val, val.length);
         return val.length === 10;
       },
       message: "Phone Number should have 10 digits",
@@ -38,6 +37,7 @@ const userSchema = mongoose.Schema({
   },
   password: {
     type: String,
+    select: false,
     required: [true, "Password is Mandatory"],
     trim: true,
   },
@@ -45,6 +45,7 @@ const userSchema = mongoose.Schema({
     type: String,
     required: [true, "Confirm password is mandatory"],
     trim: true,
+    select: false,
     validate: {
       validator: function (val) {
         return val === this.password;
@@ -56,5 +57,15 @@ const userSchema = mongoose.Schema({
   resetToken: String,
   resetTokenExpiresAt: String,
 });
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  this.confirmPassword = undefined;
+  next();
+});
+userSchema.methods.compareBcryptPassword = async function (currentPassword) {
+  return await bcrypt.compare(currentPassword, this.password);
+};
 const userModel = mongoose.model("userModel", userSchema);
+
 module.exports = userModel;
