@@ -3,6 +3,8 @@ const catchAsync = require("../catchAsync");
 const userModel = require("../models/userSchema");
 const UserModel = require("../models/userSchema");
 const jwtToken = require("jsonwebtoken");
+const sendEmail = require("../email");
+const { promisify } = require("util");
 function jwtSignIn(id) {
   const token = jwtToken.sign({ id: id }, process.env.JWT_SECRETE, {
     expiresIn: process.env.JWT_EXPIRES_IN,
@@ -38,6 +40,74 @@ exports.signIn = catchAsync(async (req, res, next) => {
   });
 });
 exports.protect = catchAsync(async (req, res, next) => {
-  console.log(req.headers);
+  let bearertoken;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    bearertoken = req.headers.authorization.split(" ")[1];
+  }
+  if (!bearertoken) {
+    return next(new AppError("Please try to sign in ", 401));
+  }
+  const decoded = await promisify(jwtToken.verify)(
+    bearertoken,
+    process.env.JWT_SECRETE
+  );
+  console.log(decoded);
+  const user = await userModel.findById(decoded.id);
+  if (!user) {
+    return next(
+      new AppError("The user belonging to the token has no longer exist ", 401)
+    );
+  }
+  if (user.passwordChangedCompareToken(decoded.iat)) {
+    return next(new AppError("Please try to sign in with new password", 401));
+  }
+  req.user = user;
   next();
+});
+exports.restrictTo = (...roles) => {
+  return (req, res, next) => {
+    const allowedUser = roles.includes(req.user.role);
+    if (!allowedUser) {
+      return next(
+        new AppError("You Don't have the permission to do this operation", 403)
+      );
+    }
+    next();
+  };
+};
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) {
+    return next(new AppError("No user available with this emailId", 404));
+  }
+  const user = await userModel.findOne({ email });
+  if (!user) {
+    return next(new AppError("No user available with this emailId", 404));
+  }
+  const resetToken = user.resetTokenCreation();
+  const resetUrl = `${req.protocol}://${req.get(
+    "host"
+  )}/users/reset-password/${resetToken}`;
+  await user.save({ validateBeforeSave: false });
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: "Reset password and token expire within 10minutes",
+      text: resetUrl,
+    });
+    res.status(200).json({
+      status: "success",
+      message: "token sent successfully",
+    });
+  } catch (error) {
+    user.resetToken = undefined;
+    user.resetTokenExpiresAt = undefined;
+    await user.save({ validateBeforeSave: false });
+    return next(
+      new AppError("Issues in sending a mail.Please try again later", 500)
+    );
+  }
 });

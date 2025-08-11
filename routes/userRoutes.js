@@ -3,10 +3,22 @@ const {
   signUp,
   signIn,
   protect,
+  restrictTo,
+  forgotPassword,
 } = require("../controllers/authControllers.js");
+const {
+  getAllUser,
+  getUserById,
+  updateUser,
+  deleteUser,
+  createUser,
+} = require("../controllers/userController.js");
 const router = express.Router();
 router.post("/sign-up", signUp);
 router.post("/sign-in", signIn);
-router.use(protect);
+router.post("/forgot-password", forgotPassword);
+router.use(protect, restrictTo("admin"));
+router.route("/").get(getAllUser).post(createUser);
+router.route("/:id").get(getUserById).patch(updateUser).delete(deleteUser);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const userSchema = mongoose.Schema({
   comapanyName: {
     type: String,
@@ -53,6 +54,11 @@ const userSchema = mongoose.Schema({
     },
     message: "Password mismatch",
   },
+  role: {
+    type: String,
+    enum: ["user", "admin"],
+    default: "user",
+  },
   passwordChangedAt: Date,
   resetToken: String,
   resetTokenExpiresAt: String,
@@ -63,8 +69,37 @@ userSchema.pre("save", async function (next) {
   this.confirmPassword = undefined;
   next();
 });
+userSchema.pre("save", function (next) {
+  if (!this.isModified("password") || this.isNew) return next();
+  this.passwordChangedAt = Date.now() - 1000;
+  next();
+});
+userSchema.pre(/^find/, function (next) {
+  this.select("-__v");
+  next();
+});
 userSchema.methods.compareBcryptPassword = async function (currentPassword) {
   return await bcrypt.compare(currentPassword, this.password);
+};
+userSchema.methods.passwordChangedCompareToken = function (tokenTimeStamp) {
+  if (this.passwordChangedAt) {
+    console.log(tokenTime, this.passwordChangedAt);
+    const passwordtimeStamp = parseInt(
+      this.passwordChangedAt.getTime() / 1000,
+      10
+    );
+    return passwordtimeStamp > tokenTimeStamp;
+  }
+  return false;
+};
+userSchema.methods.resetTokenCreation = function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  this.resetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.resetTokenExpiresAt = Date.now() + 10 * 60 * 60 * 1000;
+  return resetToken;
 };
 const userModel = mongoose.model("userModel", userSchema);
 
