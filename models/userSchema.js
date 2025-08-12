@@ -83,7 +83,6 @@ userSchema.methods.compareBcryptPassword = async function (currentPassword) {
 };
 userSchema.methods.passwordChangedCompareToken = function (tokenTimeStamp) {
   if (this.passwordChangedAt) {
-    console.log(tokenTime, this.passwordChangedAt);
     const passwordtimeStamp = parseInt(
       this.passwordChangedAt.getTime() / 1000,
       10

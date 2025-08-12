@@ -4,6 +4,7 @@ const userModel = require("../models/userSchema");
 const UserModel = require("../models/userSchema");
 const jwtToken = require("jsonwebtoken");
 const sendEmail = require("../email");
+const crypto = require("crypto");
 const { promisify } = require("util");
 function jwtSignIn(id) {
   const token = jwtToken.sign({ id: id }, process.env.JWT_SECRETE, {
@@ -54,7 +55,7 @@ exports.protect = catchAsync(async (req, res, next) => {
     bearertoken,
     process.env.JWT_SECRETE
   );
-  console.log(decoded);
+
   const user = await userModel.findById(decoded.id);
   if (!user) {
     return next(
@@ -110,4 +111,82 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
       new AppError("Issues in sending a mail.Please try again later", 500)
     );
   }
+});
+exports.resetPassword = catchAsync(async (req, res, next) => {
+  const encryptToken = crypto
+    .createHash("sha256")
+    .update(req.params.token)
+    .digest("hex");
+  const user = await userModel.findOne({
+    resetToken: encryptToken,
+    resetTokenExpiresAt: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return next(new AppError("Inavalid token or token expired", 400));
+  }
+  user.password = req.body.password;
+  user.confirmPassword = req.body.confirmPassword;
+  user.resetToken = undefined;
+  user.resetTokenExpiresAt = undefined;
+  await user.save();
+
+  const token = jwtSignIn(user.id);
+  res.status(201).json({
+    status: "success",
+    token,
+  });
+});
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const { password, confirmPassword, existingPassword } = req.body;
+  const user = await userModel.findById(req.user.id).select("+password");
+  if (!user || !(await user.compareBcryptPassword(existingPassword))) {
+    return next(new AppError("wrongly entered current password", 401));
+  }
+  user.password = password;
+  user.confirmPassword = confirmPassword;
+  await user.save();
+  const token = jwtSignIn(user.id);
+  res.status(201).json({
+    status: "success",
+    token,
+  });
+});
+function filterObj(updateData, ...filedstoUpdate) {
+  let newObj = {};
+  Object.keys(updateData).forEach((key) => {
+    if (filedstoUpdate.includes(key)) {
+      newObj[key] = updateData[key];
+    }
+  });
+  return newObj;
+}
+exports.updateMe = catchAsync(async (req, res, next) => {
+  if (req.body.password || req.body.confirmPassword) {
+    return next(new AppError("Unable to update password by this route", 400));
+  }
+  const objData = filterObj(
+    req.body,
+    "email",
+    "comapanyName",
+    "companyAddress",
+    "phoneNumber",
+    "userName"
+  );
+
+  const user = await userModel.findByIdAndUpdate(req.user.id, objData, {
+    runValidators: true,
+    new: true,
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user: user,
+    },
+  });
+});
+exports.passMyId = catchAsync(async (req, res, next) => {
+  req.params.id = req.user.id;
+  next();
 });
