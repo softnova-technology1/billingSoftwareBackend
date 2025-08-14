@@ -6,7 +6,7 @@ const userSchema = mongoose.Schema({
     type: String,
     required: [true, "Comapany Name is Mandatory"],
     trim: true,
-    minlength: [3, "Company Name should have minimum of 3 Characters"],
+    minlength: [2, "Company Name should have minimum of 3 Characters"],
   },
   companyAddress: {
     type: String,

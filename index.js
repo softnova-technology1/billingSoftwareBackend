@@ -5,14 +5,20 @@ require("dotenv").config();
 const userRouter = require("./routes/userRoutes");
 const AppError = require("./AppError");
 const errorController = require("./controllers/errorController");
-
+const cors = require("cors");
 const port = process.env.PORT || 5000;
 
 app.use(express.json());
 
 //Database Connection
 connectDB();
-
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
+app.options(/.*/, cors());
 app.use("/users", userRouter);
 app.use((req, res, next) => {
   next(new AppError(`Path Not Found ${req.originalUrl}`, 404));
