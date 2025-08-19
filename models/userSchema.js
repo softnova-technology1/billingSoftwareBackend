@@ -59,6 +59,10 @@ const userSchema = mongoose.Schema({
     enum: ["user", "admin"],
     default: "user",
   },
+  rememberMe: {
+    type: Boolean,
+    default: "true",
+  },
   passwordChangedAt: Date,
   resetToken: String,
   resetTokenExpiresAt: String,

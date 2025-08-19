@@ -25,11 +25,11 @@ exports.signUp = catchAsync(async (req, res, next) => {
   });
 });
 exports.signIn = catchAsync(async (req, res, next) => {
-  const { userID, password } = req.body;
-  if (!userID || !password) {
-    return next(new AppError("UserId and password is Mandatory", 400));
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return next(new AppError("Email and password is Mandatory", 400));
   }
-  const user = await userModel.findById(userID).select("+password");
+  const user = await userModel.findOne({ email: email }).select("+password");
   if (!user || !(await user.compareBcryptPassword(password))) {
     return next(new AppError("Invalid userID or password", 401));
   }
