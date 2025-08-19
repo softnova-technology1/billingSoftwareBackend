@@ -3,6 +3,7 @@ const connectDB = require("./database/db");
 const app = express();
 require("dotenv").config();
 const userRouter = require("./routes/userRoutes");
+const customerRouter = require("./routes/customerRoutes");
 const AppError = require("./AppError");
 const errorController = require("./controllers/errorController");
 const cors = require("cors");
@@ -20,6 +21,7 @@ app.use(
 );
 app.options(/.*/, cors());
 app.use("/users", userRouter);
+app.use("/customers", customerRouter);
 app.use((req, res, next) => {
   next(new AppError(`Path Not Found ${req.originalUrl}`, 404));
 });
